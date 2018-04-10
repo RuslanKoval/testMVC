@@ -56,5 +56,5 @@ $user = User::getUser();
 
 <script src="js/jquery-3.1.1.min.js" language="JavaScript"></script>
 <script src="js/bootstrap.min.js" language="JavaScript"></script>
-<script src="js/main.js" language="JavaScript"></script>
+
 </html>
