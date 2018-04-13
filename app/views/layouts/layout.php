@@ -14,8 +14,8 @@ $user = User::getUser();
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Document</title>
-    <link rel="stylesheet" href="css/bootstrap.min.css">
-    <link rel="stylesheet" href="css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/bootstrap-theme.min.css">
 
 </head>
 <body>
@@ -54,7 +54,7 @@ $user = User::getUser();
 </div>
 </body>
 
-<script src="js/jquery-3.1.1.min.js" language="JavaScript"></script>
-<script src="js/bootstrap.min.js" language="JavaScript"></script>
+<script src="/js/jquery-3.1.1.min.js" language="JavaScript"></script>
+<script src="/js/bootstrap.min.js" language="JavaScript"></script>
 
 </html>

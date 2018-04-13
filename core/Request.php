@@ -30,12 +30,12 @@ class Request
     {
         if ($this->isPost()) {
             if(isset($_POST[$key])) {
-                return $_POST[$key];
+                return htmlentities($_POST[$key]);
             }
         }
         else if ($this->_isGet()) {
             if(isset($_GET[$key])) {
-                return $_GET[$key];
+                return htmlentities($_GET[$key]);
             }
         }
 
@@ -47,12 +47,36 @@ class Request
      */
     public function getAllParams()
     {
+        $data = [];
         if ($this->isPost()) {
-            return $_POST;
+            $data =  $_POST;
         }
         else if ($this->_isGet()) {
-            return $_GET;
+            $data =  $_GET;
+        }
+
+        if($data) {
+            foreach ($data as $key => $value) {
+                $data[$key] = htmlentities($value);
+            }
+            return $data;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param $key
+     * @return bool
+     */
+    public function getPost($key)
+    {
+        if ($this->isPost()) {
+            if(isset($_POST[$key])) {
+                return htmlentities($_POST[$key]);
+            }
         }
         return false;
     }
+
 }

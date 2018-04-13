@@ -2,11 +2,12 @@
 
 namespace app\controllers;
 
+use app\helpers\accessHelper;
 use app\models\UserModel;
 use app\services\mailer\Mailer;
 use app\services\user\User;
 use core\Controller;
-use core\Register;
+use core\Model;
 
 class UserController  extends Controller
 {
@@ -16,30 +17,31 @@ class UserController  extends Controller
      */
     public function registerAction()
     {
-        $this->checkLoginUser();
+        AccessHelper::checkLoginUser();
 
         $user = new UserModel();
+        $user->setScenario(Model::CREATE_SCENARIO);
 
         if ($this->loadData()) {
-            $user = new UserModel();
-            $user->setUsername(Register::getField('username'));
-            $user->setPassword(Register::getField('password'));
-            $user->setTempPassword(Register::getField('password'));
-            $user->setEmail(Register::getField('email'));
-            $user->setConfirmPassword(Register::getField('confirm_password'));
 
+            $data = [
+              'username' => $this->getRequest()->getPost('username'),
+              'email' => $this->getRequest()->getPost('email'),
+              'password' => $this->getRequest()->getPost('password'),
+              'confirmPassword' => $this->getRequest()->getPost('confirmPassword'),
+            ];
 
-            $checkData = $user->checkData();
-
-            if ($checkData['success']) {
+            if (!$user->validate($data)) {
                 $user->register();
                 Mailer::sendConfirmMail($user->getUsername(), $user->getEmail(), $user->getConfirmToken());
                 header("Location: /confirm");
-            } else {
-                $this->view->error = $checkData;
-
             }
+
+            $this->view->error = $user->errors;
+            $this->view->entity = $data;
+
         }
+
         $this->view->user = $user;
     }
 
@@ -49,22 +51,23 @@ class UserController  extends Controller
      */
     public function confirmAction()
     {
-        $this->checkLoginUser();
+        AccessHelper::checkLoginUser();
 
         $user = new UserModel();
+        $user->setScenario(Model::LOAD_SCENARIO);
         $status = false;
 
         if ($this->loadData()) {
-            $token = Register::getField('token');
+            $token = $this->getRequest()->getParam('token');
             if ($token != '') {
                 $data = $user->getUserByConfirmToken($token);
                 if ($data) {
-                    $user->loadData($data);
-                    $user->setStatus(UserModel::STATUS_OK);
-                    $user->setConfirmToken('');
-
-                    if ($user->saveModel()) {
-                        $status = true;
+                    if (!$user->validate($data)) {
+                        $user->setStatus(UserModel::STATUS_OK);
+                        $user->setConfirmToken('');
+                        if ($user->saveModel()) {
+                            $status = true;
+                        }
                     }
                 }
             }
@@ -75,74 +78,49 @@ class UserController  extends Controller
 
     }
 
-    /**
-     *
-     */
-    public function loginAction()
+    public function profileAction()
     {
-        $this->checkLoginUser();
-        $user = new UserModel();
+        AccessHelper::checkLogoutUser();
 
-        $this->view->status =  true;
+        $user = User::getUser();
+        $this->view->user = $user;
+
+    }
+
+    public function editAction()
+    {
+        AccessHelper::checkLogoutUser();
+
+        $user = User::getUser();
+        $user->setScenario(Model::EDIT_SCENARIO);
+
+        $data = [
+            'id' => $user->getId(),
+            'username' => $user->getUsername(),
+            'email' => $user->getEmail(),
+            'password' => '',
+            'confirmPassword' => '',
+            'created_at' => $user->getCreated(),
+            'status' => $user->getStatus()
+        ];
 
         if ($this->loadData()) {
 
+            $data['username'] = $this->getRequest()->getPost('username');
+            $data['email'] = $this->getRequest()->getPost('email');
+            $data['password'] = $this->getRequest()->getPost('password');
+            $data['confirmPassword'] = $this->getRequest()->getPost('confirmPassword');
 
-            $login =  Register::getField('login');
-            $password =  Register::getField('password');
 
-            $data = $user->checkUserByName($login);
-
-            if ($data) {
-                $user->loadData($data);
-
-                if ($user->checkPassword($password)) {
-                    $user->login();
-                    header("Location: /");
-                }
+            if (!$user->validate($data)) {
+                $user->saveModel();
+                header("Location: /profile");
             }
-
-            $this->view->status = false;
-
         }
 
+        $this->view->entity = $data;
+        $this->view->error = $user->errors;
     }
 
-    /**
-     *
-     */
-    public function logoutAction()
-    {
-        $this->checkLogoutUser();
 
-        $user = User::getUser();
-        $user->logout();
-        header("Location: /");
-    }
-
-    /**
-     *
-     */
-    private function checkLoginUser()
-    {
-        $user = User::getUser();
-
-        if ($user) {
-            header("Location: /");
-        }
-
-    }
-
-    /**
-     *
-     */
-    private function checkLogoutUser()
-    {
-        $user = User::getUser();
-
-        if (!$user) {
-            header("Location: /");
-        }
-
-    }
 }

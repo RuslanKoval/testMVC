@@ -4,18 +4,29 @@ namespace core;
 
 class Model
 {
+    const CREATE_SCENARIO = 1;
+    const EDIT_SCENARIO = 2;
+    const LOAD_SCENARIO = 3;
+
     protected $db = null;
     protected $table = "";
+    protected $scenario = null;
 
     public function __construct()
     {
         $this->db = SQLite::instance();
+        $this->setScenario(self::CREATE_SCENARIO);
         $this->init();
     }
 
     public function init()
     {
 
+    }
+
+    public function setScenario($scenario)
+    {
+        $this->scenario = $scenario;
     }
 
     /**
@@ -27,60 +38,60 @@ class Model
     }
 
 
-    protected function save($data = array())
+    public function save($data = array())
     {
-        $sql = '';
-
-        $values = array();
-
         if (isset($data['id']) && $data['id'] != '') {
             $sql = "UPDATE {$this->table} SET ";
 
             $first = true;
             foreach($data as $key => $value) {
                 if ($key != 'id') {
-                    $sql .= ($first == false ? ',' : '') . " $key = '{$value}'";
-                    $values[] = $value;
-
+                    $sql .= ($first == false ? ',' : '') . " $key = :{$key}";
                     $first = false;
                 }
             }
-            $values[] = $data['id'];
-            $sql .= " WHERE id = {$data['id']}";
 
-            $this->db->query($sql);
+            $sql .= " WHERE id = :id";
+
+            $statement = $this->db->prepare($sql);
+
+            foreach($data as $key => $value) {
+                $statement->bindValue(':'.$key, $value);
+            }
+
+            $statement->execute();
 
             return true;
-
         }
         else {
-            unset($data['id']);
             $keys = array_keys($data);
 
-            $sql = 'INSERT INTO ' . $this->table . ' (';
+            $sql = 'insert into ' . $this->table . '(';
             $sql .= implode(',', $keys);
             $sql .= ')';
             $sql .= ' values (';
 
-            $dataValues = $data;
             $first = true;
-
-            foreach($dataValues as $key => $value) {
-                $sql .= ($first == false ? ',"'.$value.'"' : '"'.$value.'"');
-
-                $values[':'.$key] = $value;
+            foreach($data as $key => $value) {
+                $sql .= ($first == false ? ',:'.$key : ':'.$key);
 
                 $first = false;
             }
 
             $sql .= ')';
+            $statement = $this->db->prepare($sql);
+            foreach($data as $key => $value) {
+                $statement->bindValue(':'.$key, $value);
 
-            $this->db->query($sql);
+            }
+
+            $statement->execute();
             return $this->db->lastInsertRowID();
         }
 
         return false;
     }
+
 
     protected function randomString($count = 20)
     {

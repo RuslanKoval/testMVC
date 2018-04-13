@@ -8,5 +8,7 @@
     <div class="text-center">
         <h1>Congratulations</h1>
         <h3>You have successfully confirmed the mail</h3>
+
+        <a href="/login" class="btn btn-success">Login Now</a>
     </div>
 <?php } ?>

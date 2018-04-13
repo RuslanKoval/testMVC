@@ -19,7 +19,7 @@ class Mailer
         $mail = new PHPMailer(true);
         try {
 
-            $mail->SMTPDebug = 2;
+            $mail->SMTPDebug = 1;
     //        $mail->isSMTP();
             $mail->Host = $mailerSettings['host'];
             $mail->SMTPAuth = true;
@@ -29,7 +29,7 @@ class Mailer
             $mail->Port = $mailerSettings['port'];
 
 
-            $mail->setFrom('asight.test@gmail.com');
+            $mail->setFrom($mailerSettings['username']);
             $mail->addAddress($email);
 
 

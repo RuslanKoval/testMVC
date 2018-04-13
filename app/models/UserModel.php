@@ -5,22 +5,28 @@ use app\interfaces\UserInterface;
 use core\Model;
 use Respect\Validation\Validator;
 
-class UserInterfaceModel extends Model implements UserInterface
+class UserModel extends Model implements UserInterface
 {
 
-    protected $id;
-    protected $username;
-    protected $email;
-    protected $password;
-    protected $tempPassword;
-    protected $confirmPassword;
-    protected $status;
-    protected $created_at;
-    protected $confirm_token;
+    private $id;
+    private $username;
+    private $email;
+    private $password;
+    private $confirmPassword;
+    private $status;
+    private $created_at;
+    private $confirm_token;
 
-    const STATUS_OK = 1;
-    const STATUS_NOT_CONFIRM = 0;
-    const MIN_PASSWORD_LENGTH = 6;
+    public $errors = [];
+
+    const STATUS_OK = '1';
+    const STATUS_NOT_CONFIRM = '0';
+    const MIN_PASSWORD_LENGTH = '6';
+
+    private $statusList = [
+      self::STATUS_OK,
+      self::STATUS_NOT_CONFIRM
+    ];
 
 
     public function __construct()
@@ -33,7 +39,7 @@ class UserInterfaceModel extends Model implements UserInterface
      * @param string $password
      * @return string
      */
-    private function generateHash($password = '')
+    public function generateHash($password = '')
     {
         if(!$password)
             $password = $this->password;
@@ -72,14 +78,6 @@ class UserInterfaceModel extends Model implements UserInterface
     public function setPassword($password)
     {
         $this->password = $password;
-    }
-
-    /**
-     * @param mixed $password
-     */
-    public function setTempPassword($password)
-    {
-        $this->tempPassword = $password;
     }
 
     /**
@@ -147,13 +145,6 @@ class UserInterfaceModel extends Model implements UserInterface
         return $this->password;
     }
 
-    /**
-     * @return $this->password
-     */
-    public function getTempPassword()
-    {
-        return $this->tempPassword;
-    }
 
     /**
      * @return $this->confirmPassword
@@ -191,50 +182,105 @@ class UserInterfaceModel extends Model implements UserInterface
     }
 
 
-    /**
-     * @return mixed
-     */
-    public function checkData()
+    public function validate($data)
     {
         $this->createTable();
 
-        $errorArray['success'] = false;
+        if($this->scenario == Model::CREATE_SCENARIO) {
+            if (!Validator::stringType()->notEmpty()->validate($data['username'])) {
+                $this->errors['username'] = "username is required";
+            }
 
-        if (!Validator::stringType()->notEmpty()->validate($this->username)) {
-            $errorArray['error']['username'] = "username is required";
+            if ($this->checkUserByName($data['username'])) {
+                $this->errors['username'] = "username is busy";
+            }
+
+            if(!Validator::email()->validate($data['email'])) {
+                $this->errors['email'] = "email is required";
+            }
+
+            if ($this->checkUserByEmail($data['email'])) {
+                $this->errors['email'] = "email is busy";
+            }
+
+            if (!Validator::stringType()->notEmpty()->validate($data['password'])) {
+                $this->errors['password'] = "password is required";
+            }
+
+            if (!Validator::stringType()->length(self::MIN_PASSWORD_LENGTH, null)->validate($data['password'])) {
+                $this->errors['password'] = "Min password length is ".self::MIN_PASSWORD_LENGTH;
+            }
+
+            if ($data['password'] != $data['confirmPassword']) {
+                $this->errors['confirmPassword'] = "password is not confirm";
+            }
+
+        } elseif ($this->scenario == Model::LOAD_SCENARIO) {
+            if (!Validator::stringType()->notEmpty()->validate($data['username'])) {
+                $this->errors['username'] = "username is required";
+            }
+
+            if(!Validator::email()->validate($data['email'])) {
+                $this->errors['email'] = "email is required";
+            }
+
+            if (!Validator::stringType()->notEmpty()->validate($data['password'])) {
+                $this->errors['password'] = "password is required";
+            }
+
+            if (!Validator::stringType()->notEmpty()->validate($data['created_at'])) {
+                $this->errors['created_at'] = "created_at is required";
+            }
+
+            if (!Validator::in($this->statusList)->validate($data['status'])) {
+                $this->errors['status'] = "status is required";
+            }
+
+        } elseif ($this->scenario == Model::EDIT_SCENARIO) {
+            if (!Validator::stringType()->notEmpty()->validate($data['username'])) {
+                $this->errors['username'] = "username is required";
+            }
+
+            if ($this->checkUserByName($data['username'], $this->id)) {
+                $this->errors['username'] = "username is busy";
+            }
+
+            if(!Validator::email()->validate($data['email'])) {
+                $this->errors['email'] = "email is required";
+            }
+
+            if ($this->checkUserByEmail($data['email'], $this->id)) {
+                $this->errors['email'] = "email is busy";
+            }
+
+            if($data['password'] != '') {
+                $errPass = false;
+                if (!Validator::stringType()->length(self::MIN_PASSWORD_LENGTH, null)->validate($data['password'])) {
+                    $this->errors['password'] = "Min password length is ".self::MIN_PASSWORD_LENGTH;
+                    $errPass = true;
+                }
+
+                if ($data['password'] != $data['confirmPassword']) {
+                    $this->errors['confirmPassword'] = "password is not confirm";
+                    $errPass = true;
+                }
+
+                if($errPass == false)
+                {
+                    $data['password'] = $this->generateHash($data['password']);
+                }
+            } else {
+                $data['password'] = $this->password;
+            }
+
         }
 
-        if ($this->checkUserByName($this->username)) {
-            $errorArray['error']['username'] = "username is busy";
+        if(!$this->errors)
+        {
+            $this->loadData($data);
         }
 
-        if(!Validator::email()->validate($this->email)) {
-            $errorArray['error']['email'] = "email is required";
-        }
-
-        if ($this->checkUserByEmail($this->email)) {
-            $errorArray['error']['email'] = "email is busy";
-        }
-
-        if (!Validator::stringType()->notEmpty()->validate($this->password)) {
-            $errorArray['error']['password'] = "password is required";
-        }
-
-        if (!Validator::stringType()->length(self::MIN_PASSWORD_LENGTH, null)->validate($this->password)) {
-            $errorArray['error']['password'] = "Min password length is ".self::MIN_PASSWORD_LENGTH;
-        }
-
-        if ($this->password != $this->confirmPassword) {
-            $errorArray['error']['confirmPassword'] = "password is not confirm";
-        }
-
-
-
-        if($errorArray['error'] == '') {
-            $errorArray['success'] = true;
-        }
-
-        return $errorArray;
+        return $this->errors;
     }
 
 
@@ -248,14 +294,14 @@ class UserInterfaceModel extends Model implements UserInterface
         $this->setPassword($this->generateHash());
         $this->setStatus(self::STATUS_NOT_CONFIRM);
 
-        $this->saveModel();
+       return $this->saveModel();
     }
 
     public function saveModel()
     {
         $data = [
             'id' => $this->id,
-            'name' => $this->username,
+            'username' => $this->username,
             'email' => $this->email,
             'password' => $this->password,
             'created_at' => $this->created_at,
@@ -269,7 +315,7 @@ class UserInterfaceModel extends Model implements UserInterface
     protected function createTable(){
         $this->db->exec('create table if not exists `users` (
                                     `id` INTEGER PRIMARY KEY,
-                                    `name` VARCHAR(255),
+                                    `username` VARCHAR(255),
                                     `password` VARCHAR (255),
                                     `email` VARCHAR (255),
                                     `created_at` VARCHAR (12),
@@ -278,15 +324,26 @@ class UserInterfaceModel extends Model implements UserInterface
 
     }
 
+
     /**
      * @param $name
+     * @param bool $id
      * @return array
      */
-    public function checkUserByName($name)
+    public function checkUserByName($name, $id = false)
     {
-        $query = 'SELECT * FROM '.$this->table.' WHERE name = "'.$name.'" LIMIT 1';
+        $query = 'SELECT * FROM '.$this->table.' WHERE username = :username LIMIT 1';
 
-        $result = $this->db->query($query);
+        if ($id) {
+            $query = 'SELECT * FROM '.$this->table.' WHERE username = :username AND NOT id = :id LIMIT 1';
+        }
+
+        $statement = $this->db->prepare($query);
+        $statement->bindValue(':username', $name);
+        $statement->bindValue(':id', $id);
+
+        $result = $statement->execute();
+
 
         return $result->fetchArray();
     }
@@ -295,11 +352,19 @@ class UserInterfaceModel extends Model implements UserInterface
      * @param $email
      * @return array
      */
-    public function checkUserByEmail($email)
+    public function checkUserByEmail($email, $id = false)
     {
-        $query = 'SELECT * FROM '.$this->table.' WHERE email = "'.$email.'"  LIMIT 1';
+        $query = 'SELECT * FROM '.$this->table.' WHERE email = :email  LIMIT 1';
 
-        $result = $this->db->query($query);
+        if ($id) {
+            $query = 'SELECT * FROM '.$this->table.' WHERE email = :email AND NOT id = :id LIMIT 1';
+        }
+
+        $statement = $this->db->prepare($query);
+        $statement->bindValue(':email', $email);
+        $statement->bindValue(':id', $id);
+
+        $result = $statement->execute();
 
         return $result->fetchArray();
     }
@@ -311,9 +376,12 @@ class UserInterfaceModel extends Model implements UserInterface
      */
     public function getUserByConfirmToken($token)
     {
-        $query = 'SELECT * FROM '.$this->table.' WHERE confirm_token = "'.$token.'" LIMIT 1';
+        $query = 'SELECT * FROM '.$this->table.' WHERE confirm_token = :token LIMIT 1';
 
-        $result = $this->db->query($query);
+        $statement = $this->db->prepare($query);
+        $statement->bindValue(':token', $token);
+
+        $result = $statement->execute();
 
         return $result->fetchArray();
     }
@@ -325,17 +393,23 @@ class UserInterfaceModel extends Model implements UserInterface
      */
     public function getUserById($id)
     {
-        $query = 'SELECT * FROM '.$this->table.' WHERE id = "'.$id.'" LIMIT 1';
+        $query = 'SELECT * FROM '.$this->table.' WHERE id = :id LIMIT 1';
 
-        $result = $this->db->query($query);
+        $statement = $this->db->prepare($query);
+        $statement->bindValue(':id', $id);
+
+        $result = $statement->execute();
 
         return $result->fetchArray();
     }
 
-    public function loadData($data)
+    private function loadData($data)
     {
-        $this->setId($data['id']);
-        $this->setUsername($data['name']);
+        if(isset($data['id'])) {
+            $this->setId($data['id']);
+        }
+
+        $this->setUsername($data['username']);
         $this->setEmail($data['email']);
         $this->setPassword($data['password']);
         $this->setStatus($data['status']);
@@ -343,20 +417,4 @@ class UserInterfaceModel extends Model implements UserInterface
         $this->setConfirmToken($data['confirm_token']);
     }
 
-    public function checkPassword($password)
-    {
-        return ($this->password == $this->generateHash($password));
-    }
-
-    public function login()
-    {
-        if ($this->status == self::STATUS_OK) {
-            $_SESSION['user'] = $this->id;
-        }
-    }
-
-    public function logout()
-    {
-        unset($_SESSION['user']);
-    }
 }

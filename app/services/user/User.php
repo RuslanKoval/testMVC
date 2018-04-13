@@ -3,6 +3,7 @@ namespace app\services\user;
 
 
 use app\models\UserModel;
+use core\Model;
 
 class User
 {
@@ -13,13 +14,16 @@ class User
     {
         if (self::$user == null) {
             $user = new UserModel();
+            $user->setScenario(Model::LOAD_SCENARIO);
 
             if(isset($_SESSION['user'])) {
                 $userId = $_SESSION['user'];
                 $data = $user->getUserById($userId);
-                $user->loadData($data);
 
-                self::$user = $user;
+                if(!$user->validate($data))
+                {
+                    self::$user = $user;
+                }
             }
         }
 

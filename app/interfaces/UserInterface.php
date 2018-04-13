@@ -1,15 +1,13 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Ruslan
- * Date: 13.04.2018
- * Time: 09:32
- */
-
 namespace app\interfaces;
 
 
-interface User
+interface UserInterface
 {
+    public function generateHash($password = '');
+    public function saveModel();
+    public function checkUserByName($name);
+    public function checkUserByEmail($email);
+    public function getUserById($id);
 
 }
