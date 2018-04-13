@@ -1,10 +1,11 @@
 <?php
 
 namespace app\models;
+use app\interfaces\UserInterface;
 use core\Model;
 use Respect\Validation\Validator;
 
-class UserModel extends Model
+class UserInterfaceModel extends Model implements UserInterface
 {
 
     protected $id;
@@ -16,8 +17,6 @@ class UserModel extends Model
     protected $status;
     protected $created_at;
     protected $confirm_token;
-
-    protected $user = [];
 
     const STATUS_OK = 1;
     const STATUS_NOT_CONFIRM = 0;
@@ -34,7 +33,7 @@ class UserModel extends Model
      * @param string $password
      * @return string
      */
-    public function generateHash($password = '')
+    private function generateHash($password = '')
     {
         if(!$password)
             $password = $this->password;
